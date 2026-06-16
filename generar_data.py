@@ -36,12 +36,33 @@ CURR_M  = HOY.month
 PREV_M  = CURR_M - 1 if CURR_M > 1 else 12
 PREV_Y  = YEAR if CURR_M > 1 else YEAR - 1
 
+# Mapa de codigos SUC → nombre normalizado
+SUC_MAP = {
+    'SUC010': 'LA FLORIDA',      'SUC020': 'CHILLAN',        'SUC030': 'CHILLAN VIEJO',
+    'SUC040': 'COQUIMBO',        'SUC050': 'CURICO',         'SUC070': 'LINDEROS',
+    'SUC080': 'LIRA',            'SUC090': 'OVALLE 3',       'SUC100': 'MALL PLAZA NORTE',
+    'SUC110': 'LO BLANCO',       'SUC120': 'OVALLE MALL',    'SUC130': 'PLACILLA',
+    'SUC140': 'RANCAGUA USADOS', 'SUC150': 'SAN FERNANDO',   'SUC160': 'TALCA',
+    'SUC180': 'TALCA 3',         'SUC210': 'OVALLE 2',       'SUC230': 'MAIPU',
+    'SUC240': 'DIEZ DE JULIO 2', 'SUC250': 'BRASIL',         'SUC260': 'CONCEPCION RPTO',
+    'SUC270': 'GRAN AVENIDA',    'SUC280': 'CD REPUESTOS',   'SUC290': 'LA SERENA',
+    'SUC300': 'LO BLANCO 2',     'SUC310': 'RANCAGUA',       'SUC320': 'TALCA 2',
+}
+
 def norm_suc(name):
     if not name: return 'DESCONOCIDA'
-    s = re.sub(r'^\d{1,2}\s+', '', str(name).strip().upper())
+    s = str(name).strip().upper()
+    # Codigo tipo "SUC070" directo
+    if s in SUC_MAP:
+        return SUC_MAP[s]
+    # Codigo numerico puro: "70", "070", "0070" → SUC070
+    m = re.match(r'^0*(\d+)$', s)
+    if m:
+        code = 'SUC' + m.group(1).zfill(3)
+        return SUC_MAP.get(code, 'DESCONOCIDA')
+    # Nombre de texto: quitar prefijo numerico tipo "5 LINDEROS"
+    s = re.sub(r'^\d{1,2}\s+', '', s)
     s = re.sub(r'\s*\(\d+\)\s*$', '', s)
-    if re.match(r'^0+\d{4,}$', s.strip()):
-        return 'DESCONOCIDA'
     return s.strip() or 'DESCONOCIDA'
 
 def wdays(year, month, through=None):
@@ -351,7 +372,6 @@ def calcular(prod_df, may_ots, jun_ots):
         m_b = float(may_by_suc_billing.get(suc, 0))
         m_o = int(may_by_suc_ots.get(suc, 0))
         j_o = int(jun_by_suc_ots.get(suc, 0))
-        # Incluir si tiene billing O tiene OTs (no filtrar sucursales con facturacion pero sin OTs en Seguimiento)
         if m_o == 0 and j_o == 0 and m_b == 0:
             continue
         tkt  = m_b / m_o if m_o else ticket_avg
@@ -367,7 +387,6 @@ def calcular(prod_df, may_ots, jun_ots):
             'jun_billing_proj': float(j_p * tkt),
         })
 
-    # Nombres de sucursal reales en Produccion (para diagnostico de mismatch con Seguimiento)
     suc_names_prod = sorted(may_by_suc_billing.keys())
 
     return {
