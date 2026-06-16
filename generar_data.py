@@ -20,12 +20,14 @@ warnings.filterwarnings('ignore')
 try:
     import pandas as pd
 except ImportError:
-    sys.exit("❌ Falta pandas. Instala con: pip install pandas openpyxl")
+    sys.exit("Falta pandas. Instala con: pip install pandas openpyxl")
 
-# ── Configuración ─────────────────────────────────────────────
-VALID_TD = {'FACTURA S/T', 'FACTURA GARANTIA S/T', 'CARGO INTERNO S/T'}
-VALID_TV = {'VTA MANTENCIONES', 'VTA MEC', 'VTA MOVIL',
-            'VTA INTERNA-CURI', 'VTA GARANTIA', 'VTA MANT PREPAGADAS'}
+# Configuracion
+VALID_TD  = {'FACTURA S/T', 'FACTURA GARANTIA S/T', 'CARGO INTERNO S/T'}
+DEDUCT_TD = {'CIERRE GERENCIA S/T', 'NC CLIENTE S/T'}
+ALL_TD    = VALID_TD | DEDUCT_TD
+VALID_TV  = {'VTA MANTENCIONES', 'VTA MEC', 'VTA MOVIL',
+             'VTA INTERNA-CURI', 'VTA GARANTIA', 'VTA MANT PREPAGADAS'}
 
 HERE    = Path(__file__).parent
 HOY     = date.today()
@@ -34,7 +36,6 @@ CURR_M  = HOY.month
 PREV_M  = CURR_M - 1 if CURR_M > 1 else 12
 PREV_Y  = YEAR if CURR_M > 1 else YEAR - 1
 
-# ── Helpers ───────────────────────────────────────────────────
 def norm_suc(name):
     if not name: return 'DESCONOCIDA'
     s = re.sub(r'^\d{1,2}\s+', '', str(name).strip().upper())
@@ -51,17 +52,15 @@ def wdays(year, month, through=None):
 def find_file(pattern):
     matches = sorted(HERE.glob(pattern))
     if not matches:
-        sys.exit(f"❌ No se encontró archivo {pattern} en {HERE}")
+        sys.exit(f"No se encontro archivo {pattern} en {HERE}")
     if len(matches) > 1:
-        # Prefer most recently modified
         matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-        print(f"  ⚠ Múltiples {pattern} encontrados, usando: {matches[0].name}")
+        print(f"  Multiples {pattern} encontrados, usando: {matches[0].name}")
     return matches[0]
 
-# ── 1. Cargar Producción (pandas, rápido) ─────────────────────
 def load_produccion():
     t = time.time()
-    fp = find_file('Producción*.xlsx')
+    fp = find_file('Producci*.xlsx')
     print(f"  Leyendo {fp.name}...")
     raw = pd.read_excel(fp, sheet_name=0, header=None, nrows=15)
     hrow = next(
@@ -70,31 +69,28 @@ def load_produccion():
     )
     df = pd.read_excel(fp, sheet_name=0, header=hrow)
     df.columns = [str(c).strip() for c in df.columns]
-    df = df[df['TIPODOCTO'].isin(VALID_TD) & df['TIPO-VENTA'].isin(VALID_TV)].copy()
+    df = df[df['TIPODOCTO'].isin(ALL_TD) & df['TIPO-VENTA'].isin(VALID_TV)].copy()
     df['FECHA'] = pd.to_datetime(df['FECHA'], errors='coerce')
     df['_MES']  = df['FECHA'].dt.month
     df['_DIA']  = df['FECHA'].dt.day
     df['NETO']  = pd.to_numeric(df['NETO'], errors='coerce').fillna(0)
     df['_SUC']  = df['SUCURSAL'].apply(norm_suc)
-    print(f"  → {len(df)} filas válidas ({time.time()-t:.1f}s)")
+    print(f"  {len(df)} filas validas ({time.time()-t:.1f}s)")
     return df
 
-# ── 2. Cargar Seguimiento (ZIP+XML+regex, ~10s) ───────────────
 def load_seguimiento():
     t = time.time()
     fp = find_file('Seguimiento*.xlsx')
-    print(f"  Leyendo {fp.name} (método XML)...")
+    print(f"  Leyendo {fp.name} (metodo XML)...")
 
     with zipfile.ZipFile(fp) as z:
-        # Shared strings
         ss_raw = z.read('xl/sharedStrings.xml').decode('utf-8', errors='replace')
         ss = re.findall(r'<t(?:\s[^>]*)?>([^<]*)</t>', ss_raw)
-        print(f"  → {len(ss):,} shared strings ({time.time()-t:.1f}s)")
+        print(f"  {len(ss):,} shared strings ({time.time()-t:.1f}s)")
 
-        # Sheet (large — read all into memory)
         t2 = time.time()
         raw = z.read('xl/worksheets/sheet1.xml').decode('utf-8', errors='replace')
-        print(f"  → {len(raw)/1e6:.0f}MB XML leído ({time.time()-t2:.1f}s)")
+        print(f"  {len(raw)/1e6:.0f}MB XML leido ({time.time()-t2:.1f}s)")
 
     def get_cell(row_xml, col, rn):
         m = re.search(
@@ -109,77 +105,68 @@ def load_seguimiento():
         except Exception:
             return None
 
-    # Detect header row (row r="9" by default, verify it)
-    # Identify column letters for key fields from header
     def find_header():
-        # Try rows 1-20 to find 'FOLIO OT'
         folio_idx_str = None
-        for candidate_ss, candidate_val in enumerate(ss):
-            if candidate_val == 'FOLIO OT':
-                folio_idx_str = str(candidate_ss)
+        for i, v in enumerate(ss):
+            if v == 'FOLIO OT':
+                folio_idx_str = str(i)
                 break
         if folio_idx_str is None:
-            sys.exit("❌ No se encontró 'FOLIO OT' en shared strings")
-
-        # Find header row: a row containing a cell with value == folio_idx in shared strings
-        # Search for <c r="?{rn}" t="s"><v>{folio_idx}</v></c> in first 25 rows
-        for rn in range(1, 26):
+            sys.exit("No se encontro 'FOLIO OT' en shared strings")
+        for rn in range(1, 35):
             m = re.search(
-                rf'<c r="([A-Z]+){rn}" t="s"><v>{re.escape(folio_idx_str)}</v></c>',
+                rf'<c r="([A-Z]+){rn}"[^>]*t="s"[^>]*><v>{re.escape(folio_idx_str)}</v></c>',
                 raw
             )
             if m:
                 col_folio = m.group(1)
-                # Extract this row to find all headers
                 row_m = re.search(rf'<row r="{rn}"[^>]*>(.*?)</row>', raw, re.DOTALL)
                 if row_m:
                     return rn, row_m.group(1), col_folio
-        sys.exit("❌ No se encontró fila de encabezado en Seguimiento")
+        sys.exit("No se encontro fila de encabezado en Seguimiento")
 
     hrow_n, hrow_xml, _ = find_header()
-    print(f"  → Encabezado en fila {hrow_n}")
+    print(f"  Encabezado en fila {hrow_n}")
 
-    # Build column map: field_name → column_letter
-    want = {'FOLIO OT', 'SUCURSAL', 'AÑO', 'MES', 'DÍA', 'TIPO VENTA', 'FECHA OT'}
+    want = {'FOLIO OT', 'SUCURSAL', 'ANO', 'MES', 'DIA', 'TIPO VENTA', 'FECHA OT'}
+    want_orig = {'FOLIO OT': 'FOLIO OT', 'SUCURSAL': 'SUCURSAL',
+                 'A\u00d1O': 'ANO', 'MES': 'MES', 'D\u00cdA': 'DIA',
+                 'TIPO VENTA': 'TIPO VENTA', 'FECHA OT': 'FECHA OT'}
     col_map = {}
-    for cell_m in re.finditer(r'<c r="([A-Z]+)\d+" t="s"><v>(\d+)</v></c>', hrow_xml):
+    for cell_m in re.finditer(r'<c r="([A-Z]+)\d+"[^>]*t="s"[^>]*><v>(\d+)</v></c>', hrow_xml):
         col_letter, sidx = cell_m.group(1), int(cell_m.group(2))
         try:
             val = ss[sidx]
         except Exception:
             continue
-        if val in want:
-            col_map[val] = col_letter
+        if val in want_orig:
+            col_map[want_orig[val]] = col_letter
 
-    missing = want - set(col_map)
-    if missing:
-        print(f"  ⚠ Columnas no encontradas: {missing}")
-    print(f"  → Columnas: {col_map}")
+    print(f"  Columnas: {col_map}")
 
-    # Find all 2026 rows via regex on AÑO column
     t3 = time.time()
-    col_anio = col_map.get('AÑO')
+    col_anio = col_map.get('ANO')
     if not col_anio:
-        sys.exit("❌ No se encontró columna AÑO")
+        sys.exit("No se encontro columna ANO")
 
     row_nums_2026 = re.findall(
         rf'<c r="{col_anio}(\d+)"[^>]*><v>2026</v></c>', raw
     )
-    print(f"  → {len(row_nums_2026):,} filas 2026 ({time.time()-t3:.1f}s)")
+    print(f"  {len(row_nums_2026):,} filas 2026 ({time.time()-t3:.1f}s)")
 
-    # Extract row XMLs for those row numbers
     t4 = time.time()
+    row_set_2026 = set(row_nums_2026)
     all_row_xmls = {
         m.group(1): m.group(2)
         for m in re.finditer(r'<row r="(\d+)"[^>]*>(.*?)</row>', raw, re.DOTALL)
-        if m.group(1) in set(row_nums_2026)
+        if m.group(1) in row_set_2026
     }
-    print(f"  → {len(all_row_xmls):,} row XMLs extraídos ({time.time()-t4:.1f}s)")
+    print(f"  {len(all_row_xmls):,} row XMLs extraidos ({time.time()-t4:.1f}s)")
 
     col_folio = col_map.get('FOLIO OT')
     col_suc   = col_map.get('SUCURSAL')
     col_mes   = col_map.get('MES')
-    col_dia   = col_map.get('DÍA')
+    col_dia   = col_map.get('DIA')
     col_tv    = col_map.get('TIPO VENTA')
 
     seen = set()
@@ -228,16 +215,17 @@ def load_seguimiento():
         else:
             jun_ots.append(rec)
 
-    print(f"  → OTs Mayo: {len(may_ots)} | OTs Junio: {len(jun_ots)} ({time.time()-t:.1f}s total)")
+    print(f"  OTs Mayo: {len(may_ots)} | OTs Junio: {len(jun_ots)} ({time.time()-t:.1f}s total)")
     return may_ots, jun_ots
 
-# ── 3. Calcular métricas y proyecciones ──────────────────────
 def calcular(prod_df, may_ots, jun_ots):
     today_day = HOY.day
 
-    # Mayo — Producción
     may_prod = prod_df[prod_df['_MES'] == PREV_M]
-    may_billing = float(may_prod['NETO'].sum())
+    may_billing        = float(may_prod['NETO'].sum())
+    may_billing_gross  = float(may_prod[may_prod['TIPODOCTO'].isin(VALID_TD)]['NETO'].sum())
+    may_billing_deduct = float(may_prod[may_prod['TIPODOCTO'].isin(DEDUCT_TD)]['NETO'].sum())
+
     may_billing_by_day = {
         str(int(k)): float(v)
         for k, v in may_prod.groupby('_DIA')['NETO'].sum().items()
@@ -246,48 +234,65 @@ def calcular(prod_df, may_ots, jun_ots):
         k: float(v) for k, v in may_prod.groupby('_SUC')['NETO'].sum().items()
     }
     may_mix = {
-        k: float(v) for k, v in may_prod.groupby('TIPO-VENTA')['NETO'].sum().items()
+        k: float(v) for k, v in may_prod.groupby('TIPODOCTO')['NETO'].sum().items()
     }
 
-    # Mayo — Seguimiento
+    def _wk(d, year=PREV_Y, month=PREV_M):
+        return (d - 1 + date(year, month, 1).weekday()) // 7 + 1
+
+    may_prod_wk = may_prod.copy()
+    may_prod_wk['_WK'] = may_prod_wk['_DIA'].apply(
+        lambda d: _wk(int(d)) if pd.notna(d) else None
+    )
+    may_billing_by_week = {
+        int(k): float(v)
+        for k, v in may_prod_wk.groupby('_WK')['NETO'].sum().items()
+    }
+    total_may_wk = sum(may_billing_by_week.values())
+    may_week_pct = {
+        k: v / total_may_wk
+        for k, v in may_billing_by_week.items()
+        if total_may_wk
+    }
+
+    last_wk_key    = max(may_billing_by_week.keys())
+    other_wks      = [v for k, v in may_billing_by_week.items() if k != last_wk_key]
+    avg_other      = sum(other_wks) / len(other_wks) if other_wks else 1
+    last_wk_factor = may_billing_by_week.get(last_wk_key, 0) / avg_other if avg_other else 1
+
     may_n = len(may_ots)
     may_ots_by_day, may_by_suc_ots = {}, {}
     for o in may_ots:
         d = str(o['dia']) if o['dia'] else None
-        if d: may_ots_by_day[d] = may_ots_by_day.get(d, 0) + 1
+        if d:
+            may_ots_by_day[d] = may_ots_by_day.get(d, 0) + 1
         may_by_suc_ots[o['suc']] = may_by_suc_ots.get(o['suc'], 0) + 1
 
-    may_wdays   = wdays(PREV_Y, PREV_M)
-    ticket_avg  = may_billing / may_n if may_n else 0
-    daily_bill  = may_billing / may_wdays if may_wdays else 0
+    may_wdays  = wdays(PREV_Y, PREV_M)
+    ticket_avg = may_billing / may_n if may_n else 0
+    daily_bill = may_billing / may_wdays if may_wdays else 0
 
-    # Junio — Seguimiento
     jun_n = len(jun_ots)
     jun_ots_by_day, jun_by_suc_ots = {}, {}
     for o in jun_ots:
         d = str(o['dia']) if o['dia'] else None
-        if d: jun_ots_by_day[d] = jun_ots_by_day.get(d, 0) + 1
+        if d:
+            jun_ots_by_day[d] = jun_ots_by_day.get(d, 0) + 1
         jun_by_suc_ots[o['suc']] = jun_by_suc_ots.get(o['suc'], 0) + 1
 
-    jun_so_far  = wdays(YEAR, CURR_M, today_day)
-    jun_total   = wdays(YEAR, CURR_M)
-    jun_remain  = jun_total - jun_so_far
-    jun_rate    = jun_n / jun_so_far if jun_so_far else (may_n / may_wdays if may_wdays else 0)
+    jun_so_far = wdays(YEAR, CURR_M, today_day)
+    jun_total  = wdays(YEAR, CURR_M)
+    jun_remain = jun_total - jun_so_far
+    jun_rate   = jun_n / jun_so_far if jun_so_far else (may_n / may_wdays if may_wdays else 0)
 
-    # Escenarios
     scenarios = {}
-    for name, (fo, fb) in {
-        'conservador': (0.88, 0.93),
-        'probable':    (1.00, 1.00),
-        'optimista':   (1.10, 1.07),
-    }.items():
+    for name, fo, fb in [('conservador', 0.88, 0.93), ('probable', 1.00, 1.00), ('optimista', 1.10, 1.07)]:
         proj_ots = round(jun_n + jun_remain * jun_rate * fo)
         scenarios[name] = {
-            'ots':     proj_ots,
+            'ots': proj_ots,
             'billing': float(proj_ots * ticket_avg * fb),
         }
 
-    # Semanas de junio
     _, dim = calendar.monthrange(YEAR, CURR_M)
 
     def wk(d):
@@ -298,31 +303,47 @@ def calcular(prod_df, may_ots, jun_ots):
         w = wk(d)
         week_days_map.setdefault(w, []).append(d)
 
+    total_weeks_jun  = max(week_days_map.keys())
+    prob_billing_jun = scenarios['probable']['billing']
+
+    def may_pct_for_jun_week(w_jun, total_w_jun, pct_map):
+        total_w_may = max(pct_map.keys()) if pct_map else total_w_jun
+        w_may = total_w_may - (total_w_jun - w_jun)
+        return pct_map.get(w_may, pct_map.get(w_jun, 1.0 / total_w_jun))
+
     weekly = []
     for w, days in sorted(week_days_map.items()):
-        wd = [d for d in days if date(YEAR, CURR_M, d).weekday() < 5]
-        actual    = sum(jun_ots_by_day.get(str(d), 0) for d in wd)
-        all_past  = max(days) < today_day
-        partial   = min(days) <= today_day <= max(days)
+        wd       = [d for d in days if date(YEAR, CURR_M, d).weekday() < 5]
+        actual   = sum(jun_ots_by_day.get(str(d), 0) for d in wd)
+        all_past = max(days) < today_day
+        partial  = min(days) <= today_day <= max(days)
+
         if all_past:
-            proj = actual
+            proj_ots = actual
         elif partial:
-            proj = actual + len([d for d in wd if d > today_day]) * jun_rate
+            proj_ots = actual + len([d for d in wd if d > today_day]) * jun_rate
         else:
-            proj = len(wd) * jun_rate
+            proj_ots = round(len(wd) * jun_rate)
+
+        if all_past or partial:
+            billing_proj = float(round(proj_ots) * ticket_avg)
+        else:
+            pct = may_pct_for_jun_week(w, total_weeks_jun, may_week_pct)
+            billing_proj = float(prob_billing_jun * pct)
+
         weekly.append({
-            'week':     w,
-            'start':    min(days),
-            'end':      max(days),
-            'weekdays': len(wd),
-            'actual':   int(actual),
-            'projected': int(round(proj)),
-            'billing':  float(round(proj) * ticket_avg),
-            'all_past': bool(all_past),
-            'partial':  bool(partial),
+            'week':         w,
+            'start':        min(days),
+            'end':          max(days),
+            'weekdays':     len(wd),
+            'actual':       int(actual),
+            'projected':    int(round(proj_ots)),
+            'billing':      billing_proj,
+            'all_past':     bool(all_past),
+            'partial':      bool(partial),
+            'is_last_week': bool(w == total_weeks_jun),
         })
 
-    # Por sucursal
     all_s = sorted(
         set(list(may_by_suc_billing) + list(may_by_suc_ots) + list(jun_by_suc_ots))
     )
@@ -337,31 +358,36 @@ def calcular(prod_df, may_ots, jun_ots):
         rate = j_o / jun_so_far if jun_so_far else 0
         j_p  = round(j_o + rate * jun_remain)
         suc_rows.append({
-            'sucursal':       suc,
-            'may_ots':        m_o,
-            'may_billing':    m_b,
-            'ticket_avg':     float(tkt),
-            'jun_ots_actual': j_o,
-            'jun_ots_proj':   j_p,
+            'sucursal':         suc,
+            'may_ots':          m_o,
+            'may_billing':      m_b,
+            'ticket_avg':       float(tkt),
+            'jun_ots_actual':   j_o,
+            'jun_ots_proj':     j_p,
             'jun_billing_proj': float(j_p * tkt),
         })
 
     return {
-        'generado':    HOY.isoformat(),
-        'today_day':   today_day,
-        'curr_month':  CURR_M,
-        'curr_year':   YEAR,
-        'prev_month':  PREV_M,
-        'prev_year':   PREV_Y,
+        'generado':   HOY.isoformat(),
+        'today_day':  today_day,
+        'curr_month': CURR_M,
+        'curr_year':  YEAR,
+        'prev_month': PREV_M,
+        'prev_year':  PREV_Y,
         'may': {
-            'billing_total':    may_billing,
-            'ot_count':         may_n,
-            'ticket_avg':       float(ticket_avg),
-            'working_days':     may_wdays,
+            'billing_total':     may_billing,
+            'billing_gross':     may_billing_gross,
+            'billing_deduct':    may_billing_deduct,
+            'ot_count':          may_n,
+            'ticket_avg':        float(ticket_avg),
+            'working_days':      may_wdays,
             'daily_billing_avg': float(daily_bill),
-            'billing_by_day':   may_billing_by_day,
-            'ots_by_day':       may_ots_by_day,
-            'mix':              may_mix,
+            'billing_by_day':    may_billing_by_day,
+            'billing_by_week':   {str(k): float(v) for k, v in may_billing_by_week.items()},
+            'week_pct':          {str(k): float(v) for k, v in may_week_pct.items()},
+            'last_week_factor':  float(last_wk_factor),
+            'ots_by_day':        may_ots_by_day,
+            'mix':               may_mix,
         },
         'jun': {
             'ot_count':       jun_n,
@@ -371,24 +397,23 @@ def calcular(prod_df, may_ots, jun_ots):
             'working_remain': jun_remain,
             'daily_ot_rate':  float(jun_rate),
         },
-        'scenarios': scenarios,
-        'weekly':    weekly,
+        'scenarios':  scenarios,
+        'weekly':     weekly,
         'sucursales': suc_rows,
     }
 
-# ── Main ──────────────────────────────────────────────────────
 if __name__ == '__main__':
     t0 = time.time()
-    print(f"\n📊 Generando proyección Post-Venta — {HOY}")
-    print("─" * 50)
+    print(f"\nGenerando proyeccion Post-Venta - {HOY}")
+    print("-" * 50)
 
-    print("\n[1/3] Producción")
+    print("\n[1/3] Produccion")
     prod_df = load_produccion()
 
     print("\n[2/3] Seguimiento")
     may_ots, jun_ots = load_seguimiento()
 
-    print("\n[3/3] Calculando métricas")
+    print("\n[3/3] Calculando metricas")
     data = calcular(prod_df, may_ots, jun_ots)
 
     out = HERE / 'data.json'
@@ -396,18 +421,15 @@ if __name__ == '__main__':
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     sc = data['scenarios']
-    print(f"""
-✅ data.json generado en {out} ({time.time()-t0:.1f}s)
-
-   Mayo billing    : ${data['may']['billing_total']:>15,.0f}
-   Mayo OTs        : {data['may']['ot_count']:>6}
-   Ticket promedio : ${data['may']['ticket_avg']:>15,.0f}
-   ─────────────────────────────────────
-   Junio OTs (real): {data['jun']['ot_count']:>6}  ({data['jun']['working_so_far']} días hábiles)
-   Tasa diaria     : {data['jun']['daily_ot_rate']:>6.1f} OTs/día
-   ─────────────────────────────────────
-   Proyección cierre (Junio):
-     Conservador   : {sc['conservador']['ots']:>6} OTs  ${sc['conservador']['billing']:>15,.0f}
-     Probable      : {sc['probable']['ots']:>6} OTs  ${sc['probable']['billing']:>15,.0f}
-     Optimista     : {sc['optimista']['ots']:>6} OTs  ${sc['optimista']['billing']:>15,.0f}
-""")
+    print(f"\ndata.json generado en {out} ({time.time()-t0:.1f}s)")
+    print(f"  Mayo billing NET  : {data['may']['billing_total']:,.0f}")
+    print(f"  Mayo billing bruto: {data['may']['billing_gross']:,.0f}")
+    print(f"  Deducciones NC/CG : {data['may']['billing_deduct']:,.0f}")
+    print(f"  Mayo OTs          : {data['may']['ot_count']}")
+    print(f"  Ticket promedio   : {data['may']['ticket_avg']:,.0f}")
+    print(f"  Factor fin de mes : {data['may']['last_week_factor']:.2f}x")
+    print(f"  Junio OTs (real)  : {data['jun']['ot_count']} ({data['jun']['working_so_far']} dias habiles)")
+    print(f"  Tasa diaria       : {data['jun']['daily_ot_rate']:.1f} OTs/dia")
+    print(f"  Conservador       : {sc['conservador']['ots']} OTs  {sc['conservador']['billing']:,.0f}")
+    print(f"  Probable          : {sc['probable']['ots']} OTs  {sc['probable']['billing']:,.0f}")
+    print(f"  Optimista         : {sc['optimista']['ots']} OTs  {sc['optimista']['billing']:,.0f}")
