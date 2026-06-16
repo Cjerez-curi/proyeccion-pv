@@ -128,7 +128,6 @@ def load_seguimiento():
     hrow_n, hrow_xml, _ = find_header()
     print(f"  Encabezado en fila {hrow_n}")
 
-    want = {'FOLIO OT', 'SUCURSAL', 'ANO', 'MES', 'DIA', 'TIPO VENTA', 'FECHA OT'}
     want_orig = {'FOLIO OT': 'FOLIO OT', 'SUCURSAL': 'SUCURSAL',
                  'A\u00d1O': 'ANO', 'MES': 'MES', 'D\u00cdA': 'DIA',
                  'TIPO VENTA': 'TIPO VENTA', 'FECHA OT': 'FECHA OT'}
@@ -352,7 +351,8 @@ def calcular(prod_df, may_ots, jun_ots):
         m_b = float(may_by_suc_billing.get(suc, 0))
         m_o = int(may_by_suc_ots.get(suc, 0))
         j_o = int(jun_by_suc_ots.get(suc, 0))
-        if m_o == 0 and j_o == 0:
+        # Incluir si tiene billing O tiene OTs (no filtrar sucursales con facturacion pero sin OTs en Seguimiento)
+        if m_o == 0 and j_o == 0 and m_b == 0:
             continue
         tkt  = m_b / m_o if m_o else ticket_avg
         rate = j_o / jun_so_far if jun_so_far else 0
@@ -367,6 +367,9 @@ def calcular(prod_df, may_ots, jun_ots):
             'jun_billing_proj': float(j_p * tkt),
         })
 
+    # Nombres de sucursal reales en Produccion (para diagnostico de mismatch con Seguimiento)
+    suc_names_prod = sorted(may_by_suc_billing.keys())
+
     return {
         'generado':   HOY.isoformat(),
         'today_day':  today_day,
@@ -374,6 +377,7 @@ def calcular(prod_df, may_ots, jun_ots):
         'curr_year':  YEAR,
         'prev_month': PREV_M,
         'prev_year':  PREV_Y,
+        '_debug_suc_prod': suc_names_prod,
         'may': {
             'billing_total':     may_billing,
             'billing_gross':     may_billing_gross,
@@ -433,3 +437,4 @@ if __name__ == '__main__':
     print(f"  Conservador       : {sc['conservador']['ots']} OTs  {sc['conservador']['billing']:,.0f}")
     print(f"  Probable          : {sc['probable']['ots']} OTs  {sc['probable']['billing']:,.0f}")
     print(f"  Optimista         : {sc['optimista']['ots']} OTs  {sc['optimista']['billing']:,.0f}")
+    print(f"  Sucursales Prod   : {data['_debug_suc_prod']}")
