@@ -6,80 +6,94 @@
   "prev_month": 5,
   "prev_year": 2026,
   "may": {
-    "billing_total": 509040232.0,
+    "billing_total": 486887606,
+    "billing_gross": 509040232,
+    "billing_deduct": -22152626,
     "ot_count": 1790,
-    "ticket_avg": 284380.017877095,
+    "ticket_avg": 272004.2491620112,
     "working_days": 21,
-    "daily_billing_avg": 24240011.04761905,
+    "daily_billing_avg": 23185124.095238097,
     "billing_by_day": {
-      "4": 7979376.0,
-      "5": 15022060.0,
-      "6": 14805817.0,
-      "7": 17371178.0,
-      "8": 18438146.0,
-      "11": 11815147.0,
-      "12": 24338049.0,
-      "13": 15410799.0,
-      "14": 21145274.0,
-      "15": 25367738.0,
-      "16": 1.0,
-      "18": 19165306.0,
-      "19": 19719167.0,
-      "20": 46482011.0,
-      "22": 43087474.0,
-      "25": 26891447.0,
-      "26": 27431619.0,
-      "27": 43733423.0,
-      "28": 34125526.0,
-      "29": 69203489.0,
-      "30": 7507185.0
+      "4": 6975808,
+      "5": 15022060,
+      "6": 13630053,
+      "7": 17371178,
+      "8": 18142860,
+      "11": 11267365,
+      "12": 24338049,
+      "13": 14995706,
+      "14": 21145274,
+      "15": 24821967,
+      "16": 1,
+      "18": 4311045,
+      "19": 19719167,
+      "20": 46255559,
+      "22": 43038857,
+      "25": 25079055,
+      "26": 27431619,
+      "27": 43013595,
+      "28": 33891869,
+      "29": 68931422,
+      "30": 7505097
     },
+    "billing_by_week": {
+      "2": 71141959,
+      "3": 96568362,
+      "4": 113324628,
+      "5": 205852657
+    },
+    "week_pct": {
+      "2": 0.14611577317496965,
+      "3": 0.19833809858778784,
+      "4": 0.23275315823093679,
+      "5": 0.4227929700063057
+    },
+    "last_week_factor": 2.197441895385047,
     "ots_by_day": {
-      "28": 106,
-      "14": 93,
-      "20": 56,
-      "15": 66,
-      "27": 97,
-      "22": 89,
-      "11": 90,
-      "6": 95,
-      "18": 113,
       "4": 78,
-      "29": 137,
-      "19": 101,
-      "7": 92,
-      "25": 106,
-      "13": 84,
       "5": 113,
-      "26": 105,
+      "6": 95,
+      "7": 92,
       "8": 63,
+      "11": 90,
       "12": 96,
+      "13": 84,
+      "14": 93,
+      "15": 66,
       "16": 8,
-      "21": 2
+      "18": 113,
+      "19": 101,
+      "20": 56,
+      "21": 2,
+      "22": 89,
+      "25": 106,
+      "26": 105,
+      "27": 97,
+      "28": 106,
+      "29": 137
     },
     "mix": {
-      "VTA GARANTIA": 89498498.0,
-      "VTA INTERNA-CURI": 38850880.0,
-      "VTA MANT PREPAGADAS": 6355651.0,
-      "VTA MANTENCIONES": 255927753.0,
-      "VTA MEC": 110885033.0,
-      "VTA MOVIL": 7522417.0
+      "CARGO INTERNO S/T": 40259377,
+      "CIERRE GERENCIA S/T": -3628782,
+      "FACTURA GARANTIA S/T": 83522351,
+      "FACTURA S/T": 385258504,
+      "NC CLIENTE S/T": -18523844
     }
   },
   "jun": {
     "ot_count": 1041,
     "ots_by_day": {
-      "3": 95,
       "1": 137,
-      "8": 106,
+      "2": 92,
+      "3": 95,
       "4": 92,
-      "11": 79,
-      "15": 107,
-      "12": 63,
       "5": 72,
+      "8": 106,
       "9": 87,
       "10": 111,
-      "2": 92
+      "11": 79,
+      "12": 63,
+      "15": 107
     },
     "working_so_far": 12,
     "working_total": 22,
@@ -89,15 +103,15 @@
   "scenarios": {
     "conservador": {
       "ots": 1804,
-      "billing": 477110043.5927598
+      "billing": 456346968.90408945
     },
     "probable": {
       "ots": 1908,
-      "billing": 542597074.1094972
+      "billing": 518984107.4011174
     },
     "optimista": {
       "ots": 1995,
-      "billing": 607051805.1613408
+      "billing": 580633870.4736873
     }
   },
   "weekly": [
@@ -108,9 +122,10 @@
       "weekdays": 5,
       "actual": 488,
       "projected": 488,
-      "billing": 138777448.72402236,
+      "billing": 132738073.59106146,
       "all_past": true,
-      "partial": false
+      "partial": false,
+      "is_last_week": false
     },
     {
       "week": 2,
@@ -119,9 +134,10 @@
       "weekdays": 5,
       "actual": 446,
       "projected": 446,
-      "billing": 126833487.97318436,
+      "billing": 121313895.12625699,
       "all_past": true,
-      "partial": false
+      "partial": false,
+      "is_last_week": false
     },
     {
       "week": 3,
@@ -130,9 +146,10 @@
       "weekdays": 5,
       "actual": 107,
       "projected": 367,
-      "billing": 104367466.56089385,
+      "billing": 99825559.44245811,
       "all_past": false,
-      "partial": true
+      "partial": true,
+      "is_last_week": false
     },
     {
       "week": 4,
@@ -141,9 +158,10 @@
       "weekdays": 5,
       "actual": 0,
       "projected": 434,
-      "billing": 123420927.75865921,
+      "billing": 120795190.06927377,
       "all_past": false,
-      "partial": false
+      "partial": false,
+      "is_last_week": false
     },
     {
       "week": 5,
@@ -152,16 +170,17 @@
       "weekdays": 2,
       "actual": 0,
       "projected": 174,
-      "billing": 49482123.11061452,
+      "billing": 219422832.15418997,
       "all_past": false,
-      "partial": false
+      "partial": false,
+      "is_last_week": true
     }
   ],
   "sucursales": [
     {
       "sucursal": "CD REPUESTOS",
       "may_ots": 39,
-      "may_billing": 7235433.0,
+      "may_billing": 7235433,
       "ticket_avg": 185523.92307692306,
       "jun_ots_actual": 26,
       "jun_ots_proj": 48,
@@ -170,65 +189,65 @@
     {
       "sucursal": "CHILLAN",
       "may_ots": 326,
-      "may_billing": 64549197.0,
-      "ticket_avg": 198003.6717791411,
+      "may_billing": 63899841,
+      "ticket_avg": 196011.78220858896,
       "jun_ots_actual": 190,
       "jun_ots_proj": 348,
-      "jun_billing_proj": 68905277.7791411
+      "jun_billing_proj": 68212100.20858896
     },
     {
       "sucursal": "CURICO",
       "may_ots": 320,
-      "may_billing": 90534954.0,
-      "ticket_avg": 282921.73125,
+      "may_billing": 89488799,
+      "ticket_avg": 279652.496875,
       "jun_ots_actual": 188,
       "jun_ots_proj": 345,
-      "jun_billing_proj": 97607997.28125
+      "jun_billing_proj": 96480111.421875
     },
     {
       "sucursal": "DESCONOCIDA",
       "may_ots": 471,
-      "may_billing": 0.0,
-      "ticket_avg": 0.0,
+      "may_billing": 0,
+      "ticket_avg": 0,
       "jun_ots_actual": 301,
       "jun_ots_proj": 552,
-      "jun_billing_proj": 0.0
+      "jun_billing_proj": 0
     },
     {
       "sucursal": "RANCAGUA",
       "may_ots": 324,
-      "may_billing": 95057496.0,
-      "ticket_avg": 293387.3333333333,
+      "may_billing": 94240540,
+      "ticket_avg": 290865.86419753084,
       "jun_ots_actual": 154,
       "jun_ots_proj": 282,
-      "jun_billing_proj": 82735228.0
+      "jun_billing_proj": 82024173.7037037
     },
     {
       "sucursal": "RANCAGUA USADOS",
       "may_ots": 0,
-      "may_billing": 0.0,
-      "ticket_avg": 284380.017877095,
+      "may_billing": 0,
+      "ticket_avg": 272004.2491620112,
       "jun_ots_actual": 1,
       "jun_ots_proj": 2,
-      "jun_billing_proj": 568760.03575419
+      "jun_billing_proj": 544008.4983240224
     },
     {
       "sucursal": "SAN FERNANDO",
       "may_ots": 0,
-      "may_billing": 0.0,
-      "ticket_avg": 284380.017877095,
+      "may_billing": 0,
+      "ticket_avg": 272004.2491620112,
       "jun_ots_actual": 1,
       "jun_ots_proj": 2,
-      "jun_billing_proj": 568760.03575419
+      "jun_billing_proj": 544008.4983240224
     },
     {
       "sucursal": "TALCA",
       "may_ots": 310,
-      "may_billing": 110608353.0,
-      "ticket_avg": 356801.13870967744,
+      "may_billing": 109228506,
+      "ticket_avg": 352350.0193548387,
       "jun_ots_actual": 180,
       "jun_ots_proj": 330,
-      "jun_billing_proj": 117744375.77419356
+      "jun_billing_proj": 116275506.38709678
     }
   ]
 }
