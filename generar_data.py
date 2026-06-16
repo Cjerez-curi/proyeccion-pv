@@ -1,14 +1,14 @@
 """
-generar_data.py — Proyección Post-Venta
+generar_data.py â ProyecciÃ³n Post-Venta
 Uso: python generar_data.py
 
 Coloca este script en la misma carpeta que los archivos Excel y data.json.
-Busca automáticamente:
-  - Producción*.xlsx
+Busca automÃ¡ticamente:
+  - ProducciÃ³n*.xlsx
   - Seguimiento*.xlsx
 Genera data.json en la misma carpeta.
 
-Método: ZIP+XML+regex para el archivo grande (~63MB) → ~10 segundos.
+MÃ©todo: ZIP+XML+regex para el archivo grande (~63MB) â ~10 segundos.
 """
 
 import re, json, zipfile, time, warnings, sys, os, calendar
@@ -36,7 +36,7 @@ CURR_M  = HOY.month
 PREV_M  = CURR_M - 1 if CURR_M > 1 else 12
 PREV_Y  = YEAR if CURR_M > 1 else YEAR - 1
 
-# Mapa de codigos SUC → nombre normalizado
+# Mapa de codigos SUC â nombre normalizado
 SUC_MAP = {
     'SUC010': 'LA FLORIDA',      'SUC020': 'CHILLAN',        'SUC030': 'CHILLAN VIEJO',
     'SUC040': 'COQUIMBO',        'SUC050': 'CURICO',         'SUC070': 'LINDEROS',
@@ -55,14 +55,14 @@ def norm_suc(name):
     # Codigo tipo "SUC070" directo
     if s in SUC_MAP:
         return SUC_MAP[s]
-    # Codigo numerico puro: "70", "070", "0070" → SUC070
+    # Codigo numerico puro: "70", "070", "0070" â SUC070
     m = re.match(r'^0*(\d+)$', s)
     if m:
         code = 'SUC' + m.group(1).zfill(3)
         return SUC_MAP.get(code, 'DESCONOCIDA')
     # Nombre de texto: quitar prefijo numerico tipo "5 LINDEROS"
     s = re.sub(r'^\d{1,2}\s+', '', s)
-    s = re.sub(r'\s*\(\d+\)\s*$', '', s)
+    s = re.sub(r'\s*\((\d+)\)\s*$', r' \1', s)
     return s.strip() or 'DESCONOCIDA'
 
 def wdays(year, month, through=None):
@@ -95,6 +95,11 @@ def load_produccion():
     df['_MES']  = df['FECHA'].dt.month
     df['_DIA']  = df['FECHA'].dt.day
     df['NETO']  = pd.to_numeric(df['NETO'], errors='coerce').fillna(0)
+    # Excluir vehiculos pesados (camiones, buses, etc.)
+    PESADOS = {'CAMION', 'BUS', 'AMBULANCIA', 'CHASIS CABINADO', 'RUBRO 101', 'RUBRO 25'}
+    n_pesados = df[df['TIPO VEHICULO'].isin(PESADOS)]['NUMERO'].nunique()
+    df = df[~df['TIPO VEHICULO'].isin(PESADOS)].copy()
+    print(f"  Vehiculos pesados excluidos: {n_pesados} docs")
     # Excluir documentos con NETO total <= $2 (paso vehicular sin facturacion real)
     doc_totals = df.groupby('NUMERO')['NETO'].sum()
     valid_docs = doc_totals[doc_totals.abs() > 2].index
@@ -287,7 +292,8 @@ def calcular(prod_df, may_ots, jun_ots):
     avg_other      = sum(other_wks) / len(other_wks) if other_wks else 1
     last_wk_factor = may_billing_by_week.get(last_wk_key, 0) / avg_other if avg_other else 1
 
-    may_n = len(may_ots)
+    # OT count desde Seguimiento (tasa de ingreso de vehiculos)
+    may_n_seg = len(may_ots)
     may_ots_by_day, may_by_suc_ots = {}, {}
     for o in may_ots:
         d = str(o['dia']) if o['dia'] else None
@@ -295,8 +301,12 @@ def calcular(prod_df, may_ots, jun_ots):
             may_ots_by_day[d] = may_ots_by_day.get(d, 0) + 1
         may_by_suc_ots[o['suc']] = may_by_suc_ots.get(o['suc'], 0) + 1
 
+    # OT count desde N°RECEPCION de Produccion (denominador real del ticket)
+    may_n_prod = int(may_prod['N°RECEPCION'].nunique())
+    conversion_factor = may_n_prod / may_n_seg if may_n_seg else 1.0
+
     may_wdays  = wdays(PREV_Y, PREV_M)
-    ticket_avg = may_billing / may_n if may_n else 0
+    ticket_avg = may_billing / may_n_prod if may_n_prod else 0
     daily_bill = may_billing / may_wdays if may_wdays else 0
 
     jun_n = len(jun_ots)
@@ -310,7 +320,8 @@ def calcular(prod_df, may_ots, jun_ots):
     jun_so_far = wdays(YEAR, CURR_M, today_day)
     jun_total  = wdays(YEAR, CURR_M)
     jun_remain = jun_total - jun_so_far
-    jun_rate   = jun_n / jun_so_far if jun_so_far else (may_n / may_wdays if may_wdays else 0)
+    jun_rate_seg = jun_n / jun_so_far if jun_so_far else (may_n_seg / may_wdays if may_wdays else 0)
+    jun_rate = jun_rate_seg * conversion_factor
 
     scenarios = {}
     for name, fo, fb in [('conservador', 0.88, 0.93), ('probable', 1.00, 1.00), ('optimista', 1.10, 1.07)]:
@@ -408,7 +419,9 @@ def calcular(prod_df, may_ots, jun_ots):
             'billing_total':     may_billing,
             'billing_gross':     may_billing_gross,
             'billing_deduct':    may_billing_deduct,
-            'ot_count':          may_n,
+            'ot_count':          may_n_prod,
+            'ot_count_seg':      may_n_seg,
+            'conversion_factor': float(conversion_factor),
             'ticket_avg':        float(ticket_avg),
             'working_days':      may_wdays,
             'daily_billing_avg': float(daily_bill),
@@ -425,7 +438,8 @@ def calcular(prod_df, may_ots, jun_ots):
             'working_so_far': jun_so_far,
             'working_total':  jun_total,
             'working_remain': jun_remain,
-            'daily_ot_rate':  float(jun_rate),
+            'daily_ot_rate_seg': float(jun_rate_seg),
+            'daily_ot_rate':     float(jun_rate),
         },
         'scenarios':  scenarios,
         'weekly':     weekly,
