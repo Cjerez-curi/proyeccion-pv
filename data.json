@@ -111,20 +111,35 @@
     "working_total": 22,
     "working_remain": 10,
     "daily_ot_rate_seg": 86.75,
-    "daily_ot_rate": 65.57136871508379
+    "daily_ot_rate": 65.57136871508379,
+    "billing_real": 188209682.0,
+    "billing_by_day_real": {
+      "1": 12208399.0,
+      "2": 16381726.0,
+      "3": 11971224.0,
+      "4": 14437042.0,
+      "5": 18392257.0,
+      "8": 18902444.0,
+      "9": 21619220.0,
+      "10": 14956225.0,
+      "11": 14724524.0,
+      "12": 24232014.0,
+      "15": 20384607.0
+    },
+    "ticket_real": 299220.480127186
   },
   "scenarios": {
     "conservador": {
       "ots": 1618,
-      "billing": 514955697.2525943
+      "billing": 348774383.8410493
     },
     "probable": {
       "ots": 1697,
-      "billing": 580751371.1589062
+      "billing": 384498316.963434
     },
     "optimista": {
       "ots": 1762,
-      "billing": 645205533.3534074
+      "billing": 419049305.80372024
     }
   },
   "weekly": [
@@ -135,7 +150,7 @@
       "weekdays": 5,
       "actual": 488,
       "projected": 488,
-      "billing": 167004519.225425,
+      "billing": 73390648.0,
       "all_past": true,
       "partial": false,
       "is_last_week": false
@@ -147,7 +162,7 @@
       "weekdays": 5,
       "actual": 446,
       "projected": 446,
-      "billing": 152631179.45602366,
+      "billing": 94434427.0,
       "all_past": true,
       "partial": false,
       "is_last_week": false
@@ -159,7 +174,7 @@
       "weekdays": 5,
       "actual": 107,
       "projected": 304,
-      "billing": 104035602.14042869,
+      "billing": 79245496.28857234,
       "all_past": false,
       "partial": true,
       "is_last_week": false
@@ -171,7 +186,7 @@
       "weekdays": 5,
       "actual": 0,
       "projected": 328,
-      "billing": 135226463.45084998,
+      "billing": 89529444.41958511,
       "all_past": false,
       "partial": false,
       "is_last_week": false
@@ -183,7 +198,7 @@
       "weekdays": 2,
       "actual": 0,
       "projected": 131,
-      "billing": 241350568.43902442,
+      "billing": 159791077.51014018,
       "all_past": false,
       "partial": false,
       "is_last_week": true
@@ -299,4 +314,4 @@
       "jun_billing_proj": 4100969.6999999997
     }
   ]
-    }
+}
