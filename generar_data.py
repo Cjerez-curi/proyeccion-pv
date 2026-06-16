@@ -95,6 +95,13 @@ def load_produccion():
     df['_MES']  = df['FECHA'].dt.month
     df['_DIA']  = df['FECHA'].dt.day
     df['NETO']  = pd.to_numeric(df['NETO'], errors='coerce').fillna(0)
+    # Excluir documentos con NETO total <= $2 (paso vehicular sin facturacion real)
+    doc_totals = df.groupby('NUMERO')['NETO'].sum()
+    valid_docs = doc_totals[doc_totals.abs() > 2].index
+    before = len(df)
+    n_docs_removed = len(doc_totals) - len(valid_docs)
+    df = df[df['NUMERO'].isin(valid_docs)].copy()
+    print(f"  Paso vehicular <=\$2 excluidos: {n_docs_removed} docs ({before - len(df)} filas)")
     df['_SUC']  = df['SUCURSAL'].apply(norm_suc)
     print(f"  {len(df)} filas validas ({time.time()-t:.1f}s)")
     return df
