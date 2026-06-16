@@ -1,1 +1,343 @@
-init
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Proyección Post-Venta</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card2: #212435;
+    --border: #2d3148;
+    --text: #e2e6f3;
+    --muted: #7b82a0;
+    --accent: #4f8ef7;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+  header h1 span { color: var(--accent); }
+  #gen-date { font-size: .8rem; color: var(--muted); }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 24px; }
+
+  .section-title {
+    font-size: .7rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+    margin: 32px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 14px; }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+  }
+  .kpi-label { font-size: .72rem; color: var(--muted); margin-bottom: 8px; }
+  .kpi-value { font-size: 1.55rem; font-weight: 700; line-height: 1; }
+  .kpi-sub { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+  .up   { color: var(--green); }
+  .down { color: var(--red); }
+  .neu  { color: var(--yellow); }
+
+  .scenario-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  @media(max-width:700px){ .scenario-grid { grid-template-columns: 1fr; } }
+  .scenario-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .scenario-card.highlight { border-color: var(--accent); background: #1a2340; }
+  .sc-tag { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+  .sc-ots { font-size: 2rem; font-weight: 800; }
+  .sc-billing { font-size: 1rem; color: var(--muted); margin-top: 4px; }
+  .sc-vs { font-size: .78rem; margin-top: 8px; }
+
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  thead th {
+    background: var(--card2); color: var(--muted);
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+    padding: 11px 16px; text-align: right; white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  tbody tr { border-top: 1px solid var(--border); }
+  tbody tr:hover { background: var(--card2); }
+  tbody td { padding: 11px 16px; text-align: right; }
+  tbody td:first-child { text-align: left; font-weight: 600; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: .68rem; font-weight: 700;
+  }
+  .badge-past { background: #1e2a1e; color: var(--green); }
+  .badge-now  { background: #1e2340; color: var(--accent); }
+  .badge-fut  { background: #2a2020; color: var(--muted); }
+  tfoot td { padding: 11px 16px; text-align: right; font-weight: 700; background: var(--card2); border-top: 2px solid var(--border); }
+  tfoot td:first-child { text-align: left; }
+
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media(max-width:800px){ .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .chart-title { font-size: .78rem; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .06em; }
+
+  .mix-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .mix-label { font-size: .78rem; min-width: 180px; color: var(--text); }
+  .mix-bar-bg { flex: 1; background: var(--card2); border-radius: 4px; height: 8px; }
+  .mix-bar-fill { height: 8px; border-radius: 4px; }
+  .mix-pct { font-size: .75rem; color: var(--muted); min-width: 42px; text-align: right; }
+
+  #loading { text-align: center; padding: 80px; color: var(--muted); font-size: 1.1rem; }
+  #error-msg { display:none; background: #3b1515; border: 1px solid var(--red); border-radius: 10px; padding: 18px; margin: 20px; color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📊 Proyección <span>Post-Venta</span></h1>
+  <div id="gen-date">Cargando…</div>
+</header>
+
+<main>
+  <div id="loading">Cargando data.json…</div>
+  <div id="error-msg"></div>
+  <div id="app" style="display:none"></div>
+</main>
+
+<script>
+const MONTHS = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MONTHS_FULL = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CLP = v => '$' + Math.round(v).toLocaleString('es-CL');
+const PCT = (v, dec=1) => (v >= 0 ? '+' : '') + v.toFixed(dec) + '%';
+
+function pct_diff(a, b) { return b ? ((a - b) / b) * 100 : 0; }
+
+function badge(row) {
+  if (row.all_past) return '<span class="badge badge-past">Cerrada</span>';
+  if (row.partial)  return '<span class="badge badge-now">En curso</span>';
+  return '<span class="badge badge-fut">Proyectado</span>';
+}
+
+async function load() {
+  try {
+    const resp = await fetch('data.json?t=' + Date.now());
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const d = await resp.json();
+    render(d);
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    const err = document.getElementById('error-msg');
+    err.style.display = 'block';
+    err.innerHTML = '<b>Error al cargar data.json</b><br>' + e.message +
+      '<br><br>Ejecuta <code>generar_data.py</code> y asegúrate de que <code>data.json</code> está en la misma carpeta que <code>index.html</code>.';
+  }
+}
+
+function render(d) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const mn  = MONTHS_FULL[d.prev_month];
+  const mc  = MONTHS_FULL[d.curr_month];
+  const sc  = d.scenarios;
+  const may = d.may;
+  const jun = d.jun;
+
+  document.getElementById('gen-date').textContent =
+    'Actualizado: ' + d.generado + ' · Día ' + d.today_day + ' de ' + mc;
+
+  const pct_vs_may  = pct_diff(sc.probable.billing, may.billing_total);
+  const conf_level  = jun.working_so_far >= 15 ? 'Alto' : jun.working_so_far >= 8 ? 'Medio' : 'Bajo';
+  const conf_cls    = conf_level === 'Alto' ? 'up' : conf_level === 'Medio' ? 'neu' : 'down';
+
+  const kpis = [
+    { label: 'Facturación ' + mn,          value: CLP(may.billing_total),        sub: may.working_days + ' días hábiles' },
+    { label: 'Proyección cierre ' + mc,    value: CLP(sc.probable.billing),
+      sub: '<span class="' + (pct_vs_may>=0?'up':'down') + '">' + PCT(pct_vs_may) + ' vs ' + mn + '</span>' },
+    { label: 'OTs ' + mn,                  value: may.ot_count.toLocaleString(), sub: may.working_days + ' días hábiles' },
+    { label: 'OTs ' + mc + ' (real)',      value: jun.ot_count.toLocaleString(),
+      sub: jun.working_so_far + ' de ' + jun.working_total + ' días hábiles' },
+    { label: 'Ticket promedio',            value: CLP(may.ticket_avg),            sub: 'Base ' + mn },
+    { label: 'Tasa diaria OTs',            value: jun.daily_ot_rate.toFixed(1),   sub: 'OTs/día hábil (' + mc + ')' },
+    { label: 'OTs proyectadas',            value: sc.probable.ots.toLocaleString(), sub: 'Escenario probable' },
+    { label: 'Confianza proyección',       value: conf_level,
+      sub: jun.working_so_far + ' días transcurridos', cls: conf_cls },
+  ];
+
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  // KPIs
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Resumen Ejecutivo</p>');
+  app.insertAdjacentHTML('beforeend',
+    '<div class="kpi-grid">' + kpis.map(k =>
+      '<div class="kpi-card"><div class="kpi-label">' + k.label + '</div>' +
+      '<div class="kpi-value ' + (k.cls||'') + '">' + k.value + '</div>' +
+      '<div class="kpi-sub">' + (k.sub||'') + '</div></div>'
+    ).join('') + '</div>'
+  );
+
+  // Escenarios
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Escenarios de Cierre — ' + mc + ' ' + d.curr_year + '</p>');
+  const scDefs = [
+    { key:'conservador', label:'Conservador', col:'var(--yellow)', tag:'🔵', mult:'×0.88 OTs / ×0.93 ticket' },
+    { key:'probable',    label:'Probable',    col:'var(--accent)', tag:'✅', mult:'×1.00 OTs / ×1.00 ticket', hl:true },
+    { key:'optimista',   label:'Optimista',   col:'var(--green)',  tag:'🟢', mult:'×1.10 OTs / ×1.07 ticket' },
+  ];
+  app.insertAdjacentHTML('beforeend',
+    '<div class="scenario-grid">' + scDefs.map(s => {
+      const sv  = sc[s.key];
+      const pct = pct_diff(sv.billing, may.billing_total);
+      return '<div class="scenario-card ' + (s.hl?'highlight':'') + '">' +
+        '<div class="sc-tag" style="color:' + s.col + '">' + s.tag + ' ' + s.label + '</div>' +
+        '<div class="sc-ots" style="color:' + s.col + '">' + sv.ots.toLocaleString() + ' OTs</div>' +
+        '<div class="sc-billing">' + CLP(sv.billing) + '</div>' +
+        '<div class="sc-vs ' + (pct>=0?'up':'down') + '">' + PCT(pct) + ' vs ' + mn +
+        ' &nbsp;·&nbsp; <span style="color:var(--muted)">' + s.mult + '</span></div></div>';
+    }).join('') + '</div>'
+  );
+
+  // Semanas
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Desglose Semanal — ' + mc + '</p>');
+  const totActual = d.weekly.reduce((a,w)=>a+w.actual,0);
+  const totProj   = d.weekly.reduce((a,w)=>a+w.projected,0);
+  const totBill   = d.weekly.reduce((a,w)=>a+w.billing,0);
+  app.insertAdjacentHTML('beforeend',
+    '<div class="table-wrap"><table>' +
+    '<thead><tr><th style="text-align:left">Semana</th><th>Período</th><th>Días háb.</th>' +
+    '<th>OTs Reales</th><th>OTs Proy.</th><th>Facturación Proy.</th><th>Estado</th></tr></thead>' +
+    '<tbody>' + d.weekly.map(w =>
+      '<tr><td>Sem ' + w.week + '</td>' +
+      '<td>' + w.start + '–' + w.end + ' ' + MONTHS[d.curr_month] + '</td>' +
+      '<td>' + w.weekdays + '</td>' +
+      '<td>' + w.actual + '</td>' +
+      '<td>' + w.projected + '</td>' +
+      '<td>' + CLP(w.billing) + '</td>' +
+      '<td>' + badge(w) + '</td></tr>'
+    ).join('') + '</tbody>' +
+    '<tfoot><tr><td colspan="3">Total ' + mc + '</td><td>' + totActual + '</td><td>' + totProj + '</td><td>' + CLP(totBill) + '</td><td></td></tr></tfoot>' +
+    '</table></div>'
+  );
+
+  // Charts
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Análisis de Tendencia</p>');
+  app.insertAdjacentHTML('beforeend',
+    '<div class="charts-grid">' +
+    '<div class="chart-card"><div class="chart-title">OTs por día — ' + mn + ' vs ' + mc + '</div><canvas id="chartOTs" height="180"></canvas></div>' +
+    '<div class="chart-card"><div class="chart-title">Facturación diaria — ' + mn + '</div><canvas id="chartBilling" height="180"></canvas></div>' +
+    '</div>'
+  );
+
+  // Chart 1: OTs por día
+  {
+    const days    = Array.from({length:31},(_,i)=>i+1);
+    const mayData = days.map(d2 => may.ots_by_day[String(d2)] || 0);
+    const junData = days.map(d2 => jun.ots_by_day[String(d2)] !== undefined ? jun.ots_by_day[String(d2)] : null);
+    new Chart(document.getElementById('chartOTs'), {
+      type: 'bar',
+      data: { labels: days.map(String), datasets: [
+        { label: mn, data: mayData, backgroundColor:'rgba(167,139,250,.4)', borderColor:'rgba(167,139,250,.8)', borderWidth:1 },
+        { label: mc, data: junData, backgroundColor:'rgba(79,142,247,.6)',  borderColor:'rgba(79,142,247,1)',   borderWidth:1 },
+      ]},
+      options: {
+        responsive:true,
+        plugins:{ legend:{ labels:{ color:'#7b82a0' } } },
+        scales:{
+          x:{ ticks:{color:'#7b82a0'}, grid:{color:'rgba(45,49,72,.5)'} },
+          y:{ ticks:{color:'#7b82a0'}, grid:{color:'rgba(45,49,72,.5)'}, beginAtZero:true }
+        }
+      }
+    });
+  }
+
+  // Chart 2: Facturación diaria Mayo
+  {
+    const dkeys   = Object.keys(may.billing_by_day).sort((a,b)=>+a-+b);
+    const bdata   = dkeys.map(k => may.billing_by_day[k]);
+    new Chart(document.getElementById('chartBilling'), {
+      type:'line',
+      data:{ labels:dkeys, datasets:[{
+        label:'Facturación ' + mn, data:bdata,
+        borderColor:'rgba(52,211,153,.9)', backgroundColor:'rgba(52,211,153,.1)',
+        fill:true, tension:.35, pointRadius:3,
+      }]},
+      options:{
+        responsive:true,
+        plugins:{ legend:{ labels:{ color:'#7b82a0' } } },
+        scales:{
+          x:{ ticks:{color:'#7b82a0'}, grid:{color:'rgba(45,49,72,.5)'} },
+          y:{ ticks:{ color:'#7b82a0', callback:v=>'$'+(v/1e6).toFixed(1)+'M' }, grid:{color:'rgba(45,49,72,.5)'}, beginAtZero:true }
+        }
+      }
+    });
+  }
+
+  // Sucursales
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Análisis por Sucursal</p>');
+  const totalProjBill = d.sucursales.reduce((a,s)=>a+s.jun_billing_proj,0);
+  app.insertAdjacentHTML('beforeend',
+    '<div class="table-wrap"><table>' +
+    '<thead><tr>' +
+    '<th style="text-align:left">Sucursal</th>' +
+    '<th>OTs ' + mn + '</th>' +
+    '<th>Fact. ' + mn + '</th>' +
+    '<th>Ticket Prom.</th>' +
+    '<th>OTs ' + mc + ' (real)</th>' +
+    '<th>OTs ' + mc + ' (proy.)</th>' +
+    '<th>Fact. ' + mc + ' (proy.)</th>' +
+    '<th>Part. %</th>' +
+    '</tr></thead>' +
+    '<tbody>' + d.sucursales.map(s => {
+      const part = totalProjBill ? (s.jun_billing_proj/totalProjBill*100).toFixed(1)+'%' : '-';
+      return '<tr><td>' + s.sucursal + '</td><td>' + s.may_ots + '</td><td>' + CLP(s.may_billing) + '</td><td>' +
+        CLP(s.ticket_avg) + '</td><td>' + s.jun_ots_actual + '</td><td>' + s.jun_ots_proj + '</td><td>' +
+        CLP(s.jun_billing_proj) + '</td><td>' + part + '</td></tr>';
+    }).join('') + '</tbody>' +
+    '<tfoot><tr><td>TOTAL</td>' +
+    '<td>' + d.sucursales.reduce((a,s)=>a+s.may_ots,0) + '</td>' +
+    '<td>' + CLP(d.sucursales.reduce((a,s)=>a+s.may_billing,0)) + '</td>' +
+    '<td>—</td>' +
+    '<td>' + d.sucursales.reduce((a,s)=>a+s.jun_ots_actual,0) + '</td>' +
+    '<td>' + d.sucursales.reduce((a,s)=>a+s.jun_ots_proj,0) + '</td>' +
+    '<td>' + CLP(totalProjBill) + '</td>' +
+    '<td>100%</td></tr></tfoot>' +
+    '</table></div>'
+  );
+
+  // Mix tipo venta
+  app.insertAdjacentHTML('beforeend', '<p class="section-title">Mix Tipo de Venta — ' + mn + '</p>');
+  const mixTotal  = Object.values(may.mix).reduce((a,v)=>a+v,0);
+  const mixSorted = Object.entries(may.mix).sort((a,b)=>b[1]-a[1]);
+  const colors = ['var(--accent)','var(--green)','var(--purple)','var(--yellow)','var(--red)','#60a5fa'];
+  app.insertAdjacentHTML('beforeend',
+    '<div class="chart-card" style="max-width:680px">' +
+    mixSorted.map(([tv,val],i) => {
+      const pct2 = mixTotal ? (val/mixTotal*100).toFixed(1) : 0;
+      return '<div class="mix-row">' +
+        '<div class="mix-label">' + tv + '</div>' +
+        '<div class="mix-bar-bg"><div class="mix-bar-fill" style="width:' + pct2 + '%;background:' + colors[i%colors.length] + '"></div></div>' +
+        '<div class="mix-pct">' + pct2 + '%</div>' +
+        '<div class="mix-pct" style="min-width:100px">' + CLP(val) + '</div></div>';
+    }).join('') + '</div>'
+  );
+}
+
+load();
+</script>
+</body>
+</html>
