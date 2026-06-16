@@ -165,8 +165,13 @@ function render(d) {
   const conf_level  = jun.working_so_far >= 15 ? 'Alto' : jun.working_so_far >= 8 ? 'Medio' : 'Bajo';
   const conf_cls    = conf_level === 'Alto' ? 'up' : conf_level === 'Medio' ? 'neu' : 'down';
 
+  const hasDeduct = may.billing_gross != null;
   const kpis = [
-    { label: 'Facturación ' + mn,          value: CLP(may.billing_total),        sub: may.working_days + ' días hábiles' },
+    { label: 'Facturación neta ' + mn,
+      value: CLP(may.billing_total),
+      sub: hasDeduct
+        ? 'Bruto ' + CLP(may.billing_gross) + ' · NC/CG ' + CLP(may.billing_deduct)
+        : may.working_days + ' días hábiles' },
     { label: 'Proyección cierre ' + mc,    value: CLP(sc.probable.billing),
       sub: '<span class="' + (pct_vs_may>=0?'up':'down') + '">' + PCT(pct_vs_may) + ' vs ' + mn + '</span>' },
     { label: 'OTs ' + mn,                  value: may.ot_count.toLocaleString(), sub: may.working_days + ' días hábiles' },
@@ -175,8 +180,10 @@ function render(d) {
     { label: 'Ticket promedio',            value: CLP(may.ticket_avg),            sub: 'Base ' + mn },
     { label: 'Tasa diaria OTs',            value: jun.daily_ot_rate.toFixed(1),   sub: 'OTs/día hábil (' + mc + ')' },
     { label: 'OTs proyectadas',            value: sc.probable.ots.toLocaleString(), sub: 'Escenario probable' },
-    { label: 'Confianza proyección',       value: conf_level,
-      sub: jun.working_so_far + ' días transcurridos', cls: conf_cls },
+    { label: 'Factor fin de mes',
+      value: hasDeduct ? may.last_week_factor.toFixed(2) + 'x' : conf_level,
+      sub: hasDeduct ? 'Última semana vs promedio (' + mn + ')' : jun.working_so_far + ' días transcurridos',
+      cls: hasDeduct ? 'up' : conf_cls },
   ];
 
   const app = document.getElementById('app');
